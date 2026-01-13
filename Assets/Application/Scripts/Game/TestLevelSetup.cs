@@ -268,20 +268,42 @@ namespace Game
                 }
                 else
                 {
-                    // 기본 프리미티브 생성
-                    slotObj = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    // 개선된 슬롯 비주얼 생성
+                    slotObj = new GameObject($"Slot_{slot.Id}");
                     slotObj.transform.parent = transform;
-                    slotObj.transform.localScale = new Vector3(0.8f, 0.05f, 0.8f);
 
-                    // 색상 설정
-                    var renderer = slotObj.GetComponent<Renderer>();
-                    if (renderer != null)
+                    // 베이스 (납작한 실린더)
+                    GameObject baseObj = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    baseObj.name = "Base";
+                    baseObj.transform.SetParent(slotObj.transform);
+                    baseObj.transform.localPosition = new Vector3(0, 0, 0.1f);
+                    baseObj.transform.localScale = new Vector3(0.7f, 0.03f, 0.7f);
+                    baseObj.transform.localRotation = Quaternion.Euler(90, 0, 0);
+
+                    var baseRenderer = baseObj.GetComponent<Renderer>();
+                    if (baseRenderer != null)
                     {
-                        renderer.material.color = new Color(0.3f, 0.3f, 0.3f, 0.5f);
+                        baseRenderer.material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                        baseRenderer.material.color = new Color(0.4f, 0.4f, 0.4f);
+                    }
+
+                    // 링 (얇은 실린더)
+                    GameObject ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    ring.name = "Ring";
+                    ring.transform.SetParent(slotObj.transform);
+                    ring.transform.localPosition = new Vector3(0, 0, 0.05f);
+                    ring.transform.localScale = new Vector3(0.6f, 0.02f, 0.6f);
+                    ring.transform.localRotation = Quaternion.Euler(90, 0, 0);
+
+                    var ringRenderer = ring.GetComponent<Renderer>();
+                    if (ringRenderer != null)
+                    {
+                        ringRenderer.material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                        ringRenderer.material.color = new Color(0.6f, 0.6f, 0.6f);
                     }
                 }
 
-                slotObj.transform.position = new Vector3(slot.Position.x, slot.Position.y, 0.1f);
+                slotObj.transform.position = new Vector3(slot.Position.x, slot.Position.y, 0f);
                 slotObj.name = $"Slot_{slot.Id}";
 
                 _slotObjects.Add(slotObj);
@@ -303,10 +325,28 @@ namespace Game
                 }
                 else
                 {
-                    // 기본 프리미티브 생성
-                    pinObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    // 개선된 핀 비주얼 생성
+                    pinObj = new GameObject($"Pin_{pin.Id}");
                     pinObj.transform.parent = transform;
-                    pinObj.transform.localScale = Vector3.one * 0.5f;
+
+                    // 메인 바디 (구체)
+                    GameObject body = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    body.name = "Body";
+                    body.transform.SetParent(pinObj.transform);
+                    body.transform.localPosition = Vector3.zero;
+                    body.transform.localScale = new Vector3(0.4f, 0.4f, 0.4f);
+
+                    // 핀 헤드 (작은 구체 - 앞쪽)
+                    GameObject head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    head.name = "Head";
+                    head.transform.SetParent(pinObj.transform);
+                    head.transform.localPosition = new Vector3(0, 0, -0.15f);
+                    head.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
+
+                    // Collider 추가
+                    SphereCollider collider = pinObj.AddComponent<SphereCollider>();
+                    collider.radius = 0.3f;
+                    collider.center = Vector3.zero;
                 }
 
                 pinObj.transform.position = pin.WorldPos;

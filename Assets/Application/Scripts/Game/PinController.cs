@@ -22,6 +22,7 @@ namespace Game
         private PinData _pinData;
         private MaterialPropertyBlock _propertyBlock;
         private bool _isSelected;
+        private MeshRenderer[] _childRenderers;
 
         // ========== 프로퍼티 ==========
         public PinData PinData => _pinData;
@@ -33,6 +34,9 @@ namespace Game
         {
             if (_meshRenderer == null)
                 _meshRenderer = GetComponent<MeshRenderer>();
+
+            // 자식 오브젝트의 렌더러들도 찾기
+            _childRenderers = GetComponentsInChildren<MeshRenderer>();
 
             _propertyBlock = new MaterialPropertyBlock();
         }
@@ -69,12 +73,33 @@ namespace Game
         /// </summary>
         public void SetColor(Color color)
         {
-            if (_meshRenderer == null) return;
+            // 자식 렌더러가 없으면 다시 찾기
+            if (_childRenderers == null || _childRenderers.Length == 0)
+            {
+                _childRenderers = GetComponentsInChildren<MeshRenderer>();
+            }
 
-            _meshRenderer.GetPropertyBlock(_propertyBlock);
-            _propertyBlock.SetColor("_BaseColor", color);
-            _propertyBlock.SetColor("_Color", color);
-            _meshRenderer.SetPropertyBlock(_propertyBlock);
+            // 모든 자식 렌더러에 색상 적용
+            if (_childRenderers != null && _childRenderers.Length > 0)
+            {
+                foreach (var renderer in _childRenderers)
+                {
+                    if (renderer == null) continue;
+
+                    renderer.GetPropertyBlock(_propertyBlock);
+                    _propertyBlock.SetColor("_BaseColor", color);
+                    _propertyBlock.SetColor("_Color", color);
+                    renderer.SetPropertyBlock(_propertyBlock);
+                }
+            }
+            // 기존 단일 렌더러 지원
+            else if (_meshRenderer != null)
+            {
+                _meshRenderer.GetPropertyBlock(_propertyBlock);
+                _propertyBlock.SetColor("_BaseColor", color);
+                _propertyBlock.SetColor("_Color", color);
+                _meshRenderer.SetPropertyBlock(_propertyBlock);
+            }
         }
 
         /// <summary>
