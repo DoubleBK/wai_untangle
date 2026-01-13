@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Game.Core;
 using Game.Data;
+using Game.Physics;
 using Game.Utilities;
 
 namespace Game.Rendering
@@ -27,6 +28,13 @@ namespace Game.Rendering
         [Header("UV 설정")]
         [SerializeField] private float _uvTileScale = 2f;
 
+        [Header("물리 시뮬레이션")]
+        [SerializeField] private bool _enablePhysics = true;
+        [SerializeField] private int _physicsNodeCount = 10;
+        [SerializeField] private float _physicsDamping = 0.98f;
+        [SerializeField] private float _physicsGravity = -2f;
+        [SerializeField] private int _physicsConstraintIterations = 3;
+
         // ========== 내부 상태 변수 ==========
         private RopeData _ropeData;
         private TubeMeshGenerator _meshGenerator;
@@ -35,6 +43,10 @@ namespace Game.Rendering
 
         // 스플라인 보간된 경로 캐시
         private List<Vector3> _interpolatedPath = new List<Vector3>();
+
+        // 물리 시뮬레이션
+        private VerletRopeSimulator _simulator;
+        private bool _isSimulating = false;
 
         // ========== 프로퍼티 ==========
         public RopeData RopeData => _ropeData;
@@ -60,6 +72,18 @@ namespace Game.Rendering
 
             // PropertyBlock 초기화
             _propertyBlock = new MaterialPropertyBlock();
+
+            // 물리 시뮬레이터 초기화
+            if (_enablePhysics)
+            {
+                _simulator = new VerletRopeSimulator
+                {
+                    NodeCount = _physicsNodeCount,
+                    Damping = _physicsDamping,
+                    Gravity = _physicsGravity,
+                    ConstraintIterations = _physicsConstraintIterations
+                };
+            }
         }
 
         private void Start()
@@ -77,8 +101,24 @@ namespace Game.Rendering
             }
         }
 
+        private void Update()
+        {
+            // 물리 시뮬레이션 실행
+            if (_isSimulating && _simulator != null)
+            {
+                _simulator.Simulate(Time.deltaTime);
+                UpdateMeshFromSimulation();
+            }
+        }
+
         private void OnRopePathsUpdated()
         {
+            // 시뮬레이션 중이면 무시 (시뮬레이션이 메시를 직접 업데이트함)
+            if (_isSimulating)
+            {
+                return;
+            }
+
             // 로프 경로가 업데이트되면 메시 재생성
             UpdateMesh();
         }
@@ -221,6 +261,77 @@ namespace Game.Rendering
             _propertyBlock.SetFloat("_GlowIntensity", enabled ? 1f : 0f);
             _propertyBlock.SetVector("_GlowPosition", glowPosition);
             _meshRenderer.SetPropertyBlock(_propertyBlock);
+        }
+
+        // ========== 물리 시뮬레이션 ==========
+
+        /// <summary>
+        /// 물리 시뮬레이션 시작 (드래그 시작 시 호출)
+        /// </summary>
+        public void StartPhysicsSimulation(Vector3 startPoint, Vector3 endPoint)
+        {
+            if (_simulator == null || !_enablePhysics)
+            {
+                return;
+            }
+
+            _simulator.Initialize(startPoint, endPoint);
+            _isSimulating = true;
+        }
+
+        /// <summary>
+        /// 물리 앵커 위치 업데이트 (드래그 중 호출)
+        /// </summary>
+        public void UpdatePhysicsAnchors(Vector3 startPoint, Vector3 endPoint)
+        {
+            if (_simulator == null || !_isSimulating)
+            {
+                return;
+            }
+
+            _simulator.SetAnchorPositions(startPoint, endPoint);
+        }
+
+        /// <summary>
+        /// 물리 시뮬레이션 정지 (드래그 종료 시 호출)
+        /// </summary>
+        public void StopPhysicsSimulation()
+        {
+            _isSimulating = false;
+        }
+
+        /// <summary>
+        /// 물리 시뮬레이션 활성화 여부
+        /// </summary>
+        public bool IsSimulating => _isSimulating;
+
+        /// <summary>
+        /// 시뮬레이션 결과로 메시 업데이트
+        /// </summary>
+        private void UpdateMeshFromSimulation()
+        {
+            if (_simulator == null || !_simulator.IsInitialized)
+            {
+                return;
+            }
+
+            var physicsPath = _simulator.GetPositions();
+            if (physicsPath == null || physicsPath.Count < 2)
+            {
+                return;
+            }
+
+            // 스플라인 보간
+            _interpolatedPath = SplineInterpolator.InterpolateCatmullRom(
+                physicsPath,
+                _splineSamplesPerSegment
+            );
+
+            // 메시 업데이트
+            if (_mesh != null)
+            {
+                _meshGenerator.UpdateMesh(_mesh, _interpolatedPath);
+            }
         }
 
         // ========== 에러 처리 ==========

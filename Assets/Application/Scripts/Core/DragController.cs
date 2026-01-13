@@ -120,6 +120,10 @@ namespace Game.Core
                 rope.RenderPriority = int.MaxValue;
             }
 
+            // RopeRenderer 캐싱 및 물리 시뮬레이션 시작
+            _cachedRopeRenderer = FindRopeRenderer(pin.RopeId);
+            StartRopePhysicsSimulation(pin);
+
             OnDragStarted?.Invoke(pin);
             PrototypeDebug.Log($"Drag started: Pin {pin.Id}");
         }
@@ -159,8 +163,15 @@ namespace Game.Core
                 }
             }
 
-            // 로프 프리뷰 업데이트
-            UpdateRopePreview();
+            // 로프 프리뷰 업데이트 (물리 시뮬레이션 사용 시 앵커만 업데이트)
+            if (_cachedRopeRenderer != null && _cachedRopeRenderer.IsSimulating)
+            {
+                UpdateRopePhysicsAnchors(worldPos);
+            }
+            else
+            {
+                UpdateRopePreview();
+            }
         }
 
         /// <summary>
@@ -229,6 +240,13 @@ namespace Game.Core
         private void OnSnapAnimationComplete(bool wasSuccess)
         {
             _isAnimating = false;
+
+            // 물리 시뮬레이션 정지
+            if (_cachedRopeRenderer != null)
+            {
+                _cachedRopeRenderer.StopPhysicsSimulation();
+            }
+
             CleanupDragState();
         }
 
@@ -321,7 +339,7 @@ namespace Game.Core
         }
 
         /// <summary>
-        /// 로프 프리뷰 업데이트
+        /// 로프 프리뷰 업데이트 (물리 시뮬레이션 미사용 시)
         /// </summary>
         private void UpdateRopePreview()
         {
@@ -346,6 +364,62 @@ namespace Game.Core
                 {
                     _cachedRopeRenderer.UpdateMeshPreview(rope.RenderPath);
                 }
+            }
+        }
+
+        // ========== 물리 시뮬레이션 ==========
+
+        /// <summary>
+        /// 로프 물리 시뮬레이션 시작
+        /// </summary>
+        private void StartRopePhysicsSimulation(PinData pin)
+        {
+            if (_cachedRopeRenderer == null || GameManager.Instance == null) return;
+
+            RopeData rope = GameManager.Instance.GetRopeById(pin.RopeId);
+            if (rope == null || rope.PinIds.Count < 2) return;
+
+            // 두 핀의 위치 가져오기
+            int startPinId = rope.PinIds[0];
+            int endPinId = rope.PinIds[rope.PinIds.Count - 1];
+
+            PinData startPin = GameManager.Instance.GetPinById(startPinId);
+            PinData endPin = GameManager.Instance.GetPinById(endPinId);
+
+            if (startPin == null || endPin == null) return;
+
+            _cachedRopeRenderer.StartPhysicsSimulation(startPin.WorldPos, endPin.WorldPos);
+        }
+
+        /// <summary>
+        /// 로프 물리 앵커 위치 업데이트 (드래그 중)
+        /// </summary>
+        private void UpdateRopePhysicsAnchors(Vector2 worldPos)
+        {
+            if (_selectedPin == null || _cachedRopeRenderer == null || GameManager.Instance == null) return;
+
+            RopeData rope = GameManager.Instance.GetRopeById(_selectedPin.RopeId);
+            if (rope == null || rope.PinIds.Count < 2) return;
+
+            // 드래그 중인 핀과 반대편 핀 구분
+            int otherPinId = rope.PinIds[0] == _selectedPin.Id
+                ? rope.PinIds[rope.PinIds.Count - 1]
+                : rope.PinIds[0];
+
+            PinData otherPin = GameManager.Instance.GetPinById(otherPinId);
+            if (otherPin == null) return;
+
+            Vector3 draggedPos = new Vector3(worldPos.x, worldPos.y, 0);
+            Vector3 anchoredPos = otherPin.WorldPos;
+
+            // 드래그 중인 핀이 첫 번째인지에 따라 앵커 순서 결정
+            if (rope.PinIds[0] == _selectedPin.Id)
+            {
+                _cachedRopeRenderer.UpdatePhysicsAnchors(draggedPos, anchoredPos);
+            }
+            else
+            {
+                _cachedRopeRenderer.UpdatePhysicsAnchors(anchoredPos, draggedPos);
             }
         }
 
