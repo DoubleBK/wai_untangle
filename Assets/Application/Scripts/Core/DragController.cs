@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using Game.Data;
+using Game.Rendering;
 using Game.Utilities;
 
 namespace Game.Core
@@ -28,6 +29,7 @@ namespace Game.Core
         private bool _isDragging;
         private Vector3 _originalScale;
         private int _originalRenderPriority;
+        private RopeRenderer _cachedRopeRenderer;
 
         // ========== 이벤트 ==========
         /// <summary>
@@ -206,6 +208,7 @@ namespace Game.Core
             _selectedPin = null;
             _selectedPinTransform = null;
             _targetSlot = null;
+            _cachedRopeRenderer = null;
         }
 
         // ========== 내부 유틸리티 ==========
@@ -269,8 +272,33 @@ namespace Game.Core
                     null // 프리뷰에서는 다른 핀 참조 불필요
                 );
 
-                // TODO: RopeRenderer에 업데이트 이벤트 발생
+                // RopeRenderer 찾아서 프리뷰 업데이트
+                if (_cachedRopeRenderer == null || _cachedRopeRenderer.RopeId != _selectedPin.RopeId)
+                {
+                    _cachedRopeRenderer = FindRopeRenderer(_selectedPin.RopeId);
+                }
+
+                if (_cachedRopeRenderer != null)
+                {
+                    _cachedRopeRenderer.UpdateMeshPreview(rope.RenderPath);
+                }
             }
+        }
+
+        /// <summary>
+        /// RopeId로 RopeRenderer 찾기
+        /// </summary>
+        private RopeRenderer FindRopeRenderer(int ropeId)
+        {
+            var ropeRenderers = FindObjectsOfType<RopeRenderer>();
+            foreach (var renderer in ropeRenderers)
+            {
+                if (renderer.RopeId == ropeId)
+                {
+                    return renderer;
+                }
+            }
+            return null;
         }
 
         /// <summary>
