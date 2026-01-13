@@ -239,6 +239,19 @@ namespace Game.Core
                 );
             }
 
+            // 로프 경로도 원래 위치로 복원
+            RopeData rope = GameManager.Instance.GetRopeById(_selectedPin.RopeId);
+            if (rope != null)
+            {
+                rope.UpdatePinPositionInPath(_selectedPin.Id, _selectedPin.WorldPos, null);
+
+                // RopeRenderer 메시 업데이트
+                if (_cachedRopeRenderer != null)
+                {
+                    _cachedRopeRenderer.UpdateMeshPreview(rope.RenderPath);
+                }
+            }
+
             PrototypeDebug.Log($"Rollback to slot {_originalSlotIndex}");
         }
 
