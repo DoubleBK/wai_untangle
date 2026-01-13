@@ -38,6 +38,7 @@ namespace Game.Core
         public event Action<int> OnIntersectionCountChanged;
         public event Action OnLevelCleared;
         public event Action<PinData, SlotData> OnPinSnapped;
+        public event Action OnRopePathsUpdated;
 
         // ========== 유니티 라이프사이클 ==========
         private void Awake()
@@ -139,6 +140,15 @@ namespace Game.Core
             int previousCount = _intersections.Count;
 
             _intersections = IntersectionCalculator.CalculateAllIntersections(_ropes, _pins);
+
+            // 모든 로프에 helix 적용
+            foreach (var rope in _ropes)
+            {
+                rope.ApplyHelixAtIntersections(_intersections, _pins);
+            }
+
+            // RopeRenderer들에 경로 업데이트 알림
+            OnRopePathsUpdated?.Invoke();
 
             // 교차 수 변경 시 이벤트 발생
             if (_intersections.Count != previousCount)
