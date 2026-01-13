@@ -70,13 +70,50 @@ namespace Game.Data
 
         /// <summary>
         /// 특정 핀의 위치가 변경되었을 때 경로 업데이트
+        /// 드래그 프리뷰용: helix 없이 핀 위치만으로 직선 경로 생성
         /// </summary>
         public void UpdatePinPositionInPath(int pinId, Vector3 newPosition, List<PinData> allPins)
         {
-            int index = PinIds.IndexOf(pinId);
-            if (index >= 0 && index < RenderPath.Count)
+            int pinIndex = PinIds.IndexOf(pinId);
+            if (pinIndex < 0) return;
+
+            // allPins가 제공되면 RenderPath를 핀 개수만큼으로 초기화 (helix 제거)
+            // 이렇게 하면 드래그 중에는 항상 직선 경로만 표시됨
+            if (allPins != null)
             {
-                RenderPath[index] = newPosition;
+                InitializeRenderPath(allPins);
+            }
+            else
+            {
+                // allPins가 없으면 RenderPath를 핀 개수로 축소 (helix 포인트 제거)
+                // RenderPath가 PinIds 개수보다 크면 helix가 포함된 것
+                if (RenderPath.Count > PinIds.Count)
+                {
+                    // 기존 핀 위치만 추출하여 새 경로 생성
+                    var pinPositions = new List<Vector3>();
+                    for (int i = 0; i < PinIds.Count && i < RenderPath.Count; i++)
+                    {
+                        // 첫 번째와 마지막 포인트는 항상 핀 위치
+                        if (i == 0)
+                            pinPositions.Add(RenderPath[0]);
+                        else if (i == PinIds.Count - 1)
+                            pinPositions.Add(RenderPath[RenderPath.Count - 1]);
+                    }
+
+                    // 핀이 2개인 경우 (MVP)
+                    if (PinIds.Count == 2 && pinPositions.Count >= 2)
+                    {
+                        RenderPath.Clear();
+                        RenderPath.Add(pinPositions[0]);
+                        RenderPath.Add(pinPositions[1]);
+                    }
+                }
+            }
+
+            // pinIndex가 RenderPath 범위 내인지 확인 후 위치 업데이트
+            if (pinIndex < RenderPath.Count)
+            {
+                RenderPath[pinIndex] = newPosition;
             }
         }
 
@@ -104,6 +141,7 @@ namespace Game.Data
 
             if (intersections == null || intersections.Count == 0)
             {
+                Game.Utilities.PrototypeDebug.Log($"Rope {Id}: No intersections to process");
                 return;
             }
 
@@ -113,10 +151,14 @@ namespace Game.Data
                 .OrderBy(i => DistanceAlongPath(i.Point))
                 .ToList();
 
+            Game.Utilities.PrototypeDebug.Log($"Rope {Id}: Total intersections={intersections.Count}, I am TopRope in {myIntersections.Count} of them");
+
             if (myIntersections.Count == 0)
             {
                 return;
             }
+
+            int pathCountBefore = RenderPath.Count;
 
             // 3. 각 교차점에 helix 포인트 삽입 (역순으로 처리해야 인덱스가 안 밀림)
             for (int i = myIntersections.Count - 1; i >= 0; i--)
@@ -134,9 +176,13 @@ namespace Game.Data
                     0.08f // 튜브 반지름 (TubeMeshGenerator 기본값)
                 );
 
+                Game.Utilities.PrototypeDebug.Log($"Rope {Id}: Generated {helixPoints.Count} helix points at ({intersection.Point.x:F2}, {intersection.Point.y:F2})");
+
                 // 경로에 helix 포인트 삽입
                 InsertHelixPointsAtIntersection(intersection.Point, helixPoints);
             }
+
+            Game.Utilities.PrototypeDebug.Log($"Rope {Id}: RenderPath count {pathCountBefore} -> {RenderPath.Count}");
         }
 
         /// <summary>

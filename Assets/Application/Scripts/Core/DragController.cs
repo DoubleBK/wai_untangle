@@ -193,9 +193,10 @@ namespace Game.Core
                     );
 
                     _isAnimating = true;
+                    // 스냅 성공 후에는 로프가 이미 최종 위치(helix 포함)로 렌더링됨
+                    // OnUpdate에서 UpdateRopePreview()를 호출하면 helix가 제거되므로 제거함
                     _currentTween = _selectedPinTransform.DOMove(targetPosition, _snapDuration)
                         .SetEase(Ease.OutBack)
-                        .OnUpdate(() => UpdateRopePreview())
                         .OnComplete(() => OnSnapAnimationComplete(true));
 
                     // 스케일 복원 애니메이션

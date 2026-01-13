@@ -213,6 +213,8 @@ namespace Game.Rendering
             int expectedVertexCount = path.Count * RadialSegments;
             if (mesh.vertexCount != expectedVertexCount)
             {
+                Game.Utilities.PrototypeDebug.Log($"TubeMeshGenerator: Regenerating mesh, vertexCount {mesh.vertexCount} -> {expectedVertexCount} (path count: {path.Count})");
+
                 Mesh newMesh = GenerateMesh(path);
                 if (newMesh != null)
                 {
@@ -222,6 +224,8 @@ namespace Game.Rendering
                     mesh.uv = newMesh.uv;
                     mesh.normals = newMesh.normals;
                     mesh.RecalculateBounds();
+
+                    Game.Utilities.PrototypeDebug.Log($"TubeMeshGenerator: Mesh regenerated, new vertexCount = {mesh.vertexCount}");
                 }
                 return;
             }

@@ -10,11 +10,11 @@ namespace Game.Rendering
     public static class HelixGenerator
     {
         // ========== 기본 설정값 ==========
-        public const float DefaultHeight = 0.3f;       // Z축 상승 높이
+        public const float DefaultHeight = 0.8f;       // Z축 상승 높이 (더 크게)
         public const int DefaultWrapCount = 1;         // 감김 횟수
         public const int DefaultSamples = 20;          // 보간 샘플 수
-        public const float DefaultRadiusMargin = 0.05f; // 튜브 반경 마진
-        public const float DefaultProgressLength = 0.5f; // 진행 방향 길이
+        public const float DefaultRadiusMargin = 0.15f; // 튜브 반경 마진 (더 크게)
+        public const float DefaultProgressLength = 0.8f; // 진행 방향 길이 (더 길게)
 
         /// <summary>
         /// 교차점 주변 helix 경로 생성
@@ -79,10 +79,11 @@ namespace Game.Rendering
                 float progressOffset = (t - 0.5f) * progressLength;
 
                 // 최종 포인트: 중심 + 진행방향 오프셋 + 궤도 + 높이
+                // 카메라가 -Z를 바라보므로, -Z 방향(카메라 쪽)으로 올라가야 보임
                 Vector3 point = intersectionPoint
                     + ropeDirection * progressOffset
                     + radialOffset * helixRadius
-                    + Vector3.back * zLift; // -Z 방향이 카메라를 향함
+                    + new Vector3(0, 0, -zLift); // 카메라 쪽으로 올라감
 
                 result.Add(point);
             }
@@ -121,7 +122,7 @@ namespace Game.Rendering
 
                 Vector3 point = intersectionPoint
                     + ropeDirection * progressOffset
-                    + Vector3.back * zLift;
+                    + new Vector3(0, 0, -zLift); // 카메라 쪽으로 올라감
 
                 result.Add(point);
             }

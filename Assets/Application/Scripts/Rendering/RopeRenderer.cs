@@ -126,11 +126,15 @@ namespace Game.Rendering
                 return;
             }
 
+            PrototypeDebug.Log($"RopeRenderer {RopeId}: UpdateMesh called, RenderPath count = {_ropeData.RenderPath.Count}");
+
             // 스플라인 보간
             _interpolatedPath = SplineInterpolator.InterpolateCatmullRom(
                 _ropeData.RenderPath,
                 _splineSamplesPerSegment
             );
+
+            PrototypeDebug.Log($"RopeRenderer {RopeId}: After spline interpolation, path count = {_interpolatedPath.Count}");
 
             // 메시 생성
             if (_mesh == null)

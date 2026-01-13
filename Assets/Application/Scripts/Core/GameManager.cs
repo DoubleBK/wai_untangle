@@ -114,14 +114,7 @@ namespace Game.Core
             pin.SlotIndex = _slots.IndexOf(targetSlot);
             pin.SyncPositionFromSlot(targetSlot);
 
-            // 로프 경로 업데이트
-            RopeData rope = _ropes.Find(r => r.Id == pin.RopeId);
-            if (rope != null)
-            {
-                rope.UpdatePinPositionInPath(pin.Id, pin.WorldPos, _pins);
-            }
-
-            // 교차 재계산
+            // 교차 재계산 (내부에서 로프 경로 초기화 + helix 적용)
             RecalculateIntersections();
 
             // 이벤트 발생
