@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using DG.Tweening;
 using Game.Data;
 using Game.Rendering;
 using Game.Utilities;
@@ -19,7 +20,11 @@ namespace Game.Core
         [Header("설정값")]
         [SerializeField] private float _snapRadius = 1.0f;
         [SerializeField] private float _dragScale = 1.2f;
-        [SerializeField] private float _rollbackDuration = 0.2f;
+        [SerializeField] private float _rollbackDuration = 0.3f;
+
+        [Header("애니메이션 설정")]
+        [SerializeField] private float _snapDuration = 0.25f;
+        [SerializeField] private float _scaleDuration = 0.15f;
 
         // ========== 내부 상태 변수 ==========
         private PinData _selectedPin;
@@ -27,9 +32,11 @@ namespace Game.Core
         private int _originalSlotIndex;
         private SlotData _targetSlot;
         private bool _isDragging;
+        private bool _isAnimating;
         private Vector3 _originalScale;
         private int _originalRenderPriority;
         private RopeRenderer _cachedRopeRenderer;
+        private Tweener _currentTween;
 
         // ========== 이벤트 ==========
         /// <summary>
@@ -99,9 +106,10 @@ namespace Game.Core
 
             if (_selectedPinTransform != null)
             {
-                // 원래 스케일 저장 후 확대
+                // 원래 스케일 저장 후 확대 (DOTween 애니메이션)
                 _originalScale = _selectedPinTransform.localScale;
-                _selectedPinTransform.localScale = _originalScale * _dragScale;
+                _selectedPinTransform.DOScale(_originalScale * _dragScale, _scaleDuration)
+                    .SetEase(Ease.OutBack);
             }
 
             // 로프 렌더링 우선순위 최상위로 변경
@@ -177,44 +185,68 @@ namespace Game.Core
 
                 if (snapSuccess && _selectedPinTransform != null)
                 {
-                    // 스냅 위치로 이동
-                    _selectedPinTransform.position = new Vector3(
+                    // 스냅 위치로 부드럽게 이동 (DOTween)
+                    Vector3 targetPosition = new Vector3(
                         targetSlot.Position.x,
                         targetSlot.Position.y,
                         _selectedPinTransform.position.z
                     );
+
+                    _isAnimating = true;
+                    _currentTween = _selectedPinTransform.DOMove(targetPosition, _snapDuration)
+                        .SetEase(Ease.OutBack)
+                        .OnUpdate(() => UpdateRopePreview())
+                        .OnComplete(() => OnSnapAnimationComplete(true));
+
+                    // 스케일 복원 애니메이션
+                    _selectedPinTransform.DOScale(_originalScale, _scaleDuration)
+                        .SetEase(Ease.InOutQuad);
+
+                    // 로프 렌더링 우선순위 복원
+                    RestoreRopePriority();
+
+                    OnDragEnded?.Invoke(_selectedPin, snapSuccess);
+                    PrototypeDebug.Log($"Drag ended: Pin {_selectedPin.Id}, Success: {snapSuccess}");
+                    return; // 애니메이션 완료 후 상태 초기화
                 }
             }
 
             if (!snapSuccess)
             {
-                // 롤백
+                // 롤백 (탄성 애니메이션)
                 RollbackToOriginalSlot();
+                return; // 롤백 애니메이션 완료 후 상태 초기화
             }
 
-            // 핀 스케일 복원
-            if (_selectedPinTransform != null)
-            {
-                _selectedPinTransform.localScale = _originalScale;
-            }
+            // 애니메이션 없이 완료된 경우 상태 초기화
+            CleanupDragState();
+        }
 
-            // 로프 렌더링 우선순위 복원
-            RestoreRopePriority();
+        /// <summary>
+        /// 스냅/롤백 애니메이션 완료 후 호출
+        /// </summary>
+        private void OnSnapAnimationComplete(bool wasSuccess)
+        {
+            _isAnimating = false;
+            CleanupDragState();
+        }
 
-            OnDragEnded?.Invoke(_selectedPin, snapSuccess);
-            PrototypeDebug.Log($"Drag ended: Pin {_selectedPin.Id}, Success: {snapSuccess}");
-
-            // 상태 초기화
+        /// <summary>
+        /// 드래그 상태 정리
+        /// </summary>
+        private void CleanupDragState()
+        {
             _selectedPin = null;
             _selectedPinTransform = null;
             _targetSlot = null;
             _cachedRopeRenderer = null;
+            _currentTween = null;
         }
 
         // ========== 내부 유틸리티 ==========
 
         /// <summary>
-        /// 원래 슬롯으로 롤백
+        /// 원래 슬롯으로 롤백 (탄성 애니메이션)
         /// </summary>
         private void RollbackToOriginalSlot()
         {
@@ -223,36 +255,54 @@ namespace Game.Core
             SlotData originalSlot = GameManager.Instance.GetSlotByIndex(_originalSlotIndex);
             if (originalSlot == null) return;
 
-            // 위치 복원
+            // 위치 복원 (데이터)
             _selectedPin.SyncPositionFromSlot(originalSlot);
 
             if (_selectedPinTransform != null)
             {
-                // TODO: DOTween으로 부드러운 롤백 애니메이션 적용
-                // _selectedPinTransform.DOMove(originalSlot.Position, _rollbackDuration);
-
-                // 현재는 즉시 이동
-                _selectedPinTransform.position = new Vector3(
+                // 롤백 위치
+                Vector3 targetPosition = new Vector3(
                     originalSlot.Position.x,
                     originalSlot.Position.y,
                     _selectedPinTransform.position.z
                 );
+
+                // 탄성 애니메이션으로 복귀
+                _isAnimating = true;
+                _currentTween = _selectedPinTransform.DOMove(targetPosition, _rollbackDuration)
+                    .SetEase(Ease.OutElastic)
+                    .OnUpdate(() => UpdateRopePreviewForRollback())
+                    .OnComplete(() => OnSnapAnimationComplete(false));
+
+                // 스케일 복원 애니메이션
+                _selectedPinTransform.DOScale(_originalScale, _scaleDuration)
+                    .SetEase(Ease.InOutQuad);
             }
 
-            // 로프 경로도 원래 위치로 복원
+            // 로프 렌더링 우선순위 복원
+            RestoreRopePriority();
+
+            OnDragEnded?.Invoke(_selectedPin, false);
+            PrototypeDebug.Log($"Rollback to slot {_originalSlotIndex}");
+        }
+
+        /// <summary>
+        /// 롤백 애니메이션 중 로프 프리뷰 업데이트
+        /// </summary>
+        private void UpdateRopePreviewForRollback()
+        {
+            if (_selectedPin == null || _selectedPinTransform == null || GameManager.Instance == null) return;
+
             RopeData rope = GameManager.Instance.GetRopeById(_selectedPin.RopeId);
             if (rope != null)
             {
-                rope.UpdatePinPositionInPath(_selectedPin.Id, _selectedPin.WorldPos, null);
+                rope.UpdatePinPositionInPath(_selectedPin.Id, _selectedPinTransform.position, null);
 
-                // RopeRenderer 메시 업데이트
                 if (_cachedRopeRenderer != null)
                 {
                     _cachedRopeRenderer.UpdateMeshPreview(rope.RenderPath);
                 }
             }
-
-            PrototypeDebug.Log($"Rollback to slot {_originalSlotIndex}");
         }
 
         /// <summary>
