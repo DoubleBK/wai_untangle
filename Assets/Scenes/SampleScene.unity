@@ -457,7 +457,7 @@ MonoBehaviour:
   _ropeMaterial: {fileID: 0}
   _gridRows: 3
   _gridCols: 3
-  _slotSpacing: 2
+  _slotSpacing: 1
   _ropeCount: 2
   _ropeColors:
   - {r: 0.8, g: 0.2, b: 0.2, a: 1}
@@ -560,6 +560,8 @@ MonoBehaviour:
   _snapRadius: 1
   _dragScale: 1.2
   _rollbackDuration: 0.2
+  _snapDuration: 0.25
+  _scaleDuration: 0.15
 --- !u!4 &1192140341
 Transform:
   m_ObjectHideFlags: 0

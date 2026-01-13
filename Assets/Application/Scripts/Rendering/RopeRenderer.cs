@@ -30,10 +30,11 @@ namespace Game.Rendering
 
         [Header("물리 시뮬레이션")]
         [SerializeField] private bool _enablePhysics = true;
-        [SerializeField] private int _physicsNodeCount = 10;
-        [SerializeField] private float _physicsDamping = 0.98f;
-        [SerializeField] private float _physicsGravity = -2f;
-        [SerializeField] private int _physicsConstraintIterations = 3;
+        [SerializeField] private float _maxRopeLength = 5f;  // 최대 로프 길이 (슬롯 단위, 1 슬롯 = 1 유닛)
+        [SerializeField] private int _physicsNodeCount = 12;   // 노드 수 증가 (더 부드러운 곡선)
+        [SerializeField] private float _physicsDamping = 0.95f; // 감쇠 낮춤 (더 빠른 안정화)
+        [SerializeField] private float _physicsGravity = -5f;   // 중력 증가 (더 많이 처짐)
+        [SerializeField] private int _physicsConstraintIterations = 2; // 제약 반복 줄임 (더 느슨함)
 
         // ========== 내부 상태 변수 ==========
         private RopeData _ropeData;
@@ -78,6 +79,7 @@ namespace Game.Rendering
             {
                 _simulator = new VerletRopeSimulator
                 {
+                    MaxRopeLength = _maxRopeLength,
                     NodeCount = _physicsNodeCount,
                     Damping = _physicsDamping,
                     Gravity = _physicsGravity,
@@ -298,6 +300,10 @@ namespace Game.Rendering
         public void StopPhysicsSimulation()
         {
             _isSimulating = false;
+
+            // 시뮬레이션 정지 후 RopeData의 최신 RenderPath로 메시 업데이트
+            // (Helix가 적용된 경로로 메시 갱신)
+            UpdateMesh();
         }
 
         /// <summary>

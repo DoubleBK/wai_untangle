@@ -148,8 +148,8 @@ namespace Game.Core
             // 핀 데이터 위치 업데이트 (프리뷰용)
             _selectedPin.SetPreviewPosition(worldPos);
 
-            // 가장 가까운 빈 슬롯 탐색
-            SlotData nearestSlot = GameManager.Instance?.FindNearestEmptySlot(worldPos, _snapRadius);
+            // 가장 가까운 빈 슬롯 탐색 (드래그 중인 핀이 점유한 슬롯도 포함)
+            SlotData nearestSlot = GameManager.Instance?.FindNearestEmptySlot(worldPos, _snapRadius, _selectedPin.Id);
 
             // 하이라이트 업데이트
             if (nearestSlot != _targetSlot)
@@ -184,8 +184,8 @@ namespace Game.Core
             _isDragging = false;
             OnSlotHighlightCleared?.Invoke();
 
-            // 스냅 가능한 빈 슬롯 탐색
-            SlotData targetSlot = GameManager.Instance?.FindNearestEmptySlot(worldPos, _snapRadius);
+            // 스냅 가능한 빈 슬롯 탐색 (드래그 중인 핀이 점유한 슬롯도 포함)
+            SlotData targetSlot = GameManager.Instance?.FindNearestEmptySlot(worldPos, _snapRadius, _selectedPin.Id);
 
             bool snapSuccess = false;
 

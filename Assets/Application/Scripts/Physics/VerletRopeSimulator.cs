@@ -14,6 +14,7 @@ namespace Game.Physics
         public float Damping { get; set; } = 0.98f;
         public float Gravity { get; set; } = -2f;
         public int ConstraintIterations { get; set; } = 3;
+        public float MaxRopeLength { get; set; } = 5f;  // 최대 로프 길이 (슬롯 단위)
 
         // ========== 노드 데이터 ==========
         private Vector3[] _positions;
@@ -41,11 +42,12 @@ namespace Game.Physics
             _startAnchor = startPoint;
             _endAnchor = endPoint;
 
-            // 세그먼트 길이 계산
-            float totalLength = Vector3.Distance(startPoint, endPoint);
-            _segmentLength = totalLength / (NodeCount - 1);
+            // 핀 간 거리를 로프 길이로 사용 (항상 핀에 도달해야 함)
+            float pinDistance = Vector3.Distance(startPoint, endPoint);
+            _segmentLength = pinDistance / (NodeCount - 1);
 
             // 노드 초기화 (시작점과 끝점 사이에 균등 배치)
+            // 제약조건이 고정 길이를 유지하도록 함
             for (int i = 0; i < NodeCount; i++)
             {
                 float t = (float)i / (NodeCount - 1);
@@ -64,6 +66,13 @@ namespace Game.Physics
         {
             _startAnchor = start;
             _endAnchor = end;
+
+            // 핀 간 거리에 맞게 세그먼트 길이 재계산
+            float pinDistance = Vector3.Distance(start, end);
+            if (pinDistance > 0.001f && NodeCount > 1)
+            {
+                _segmentLength = pinDistance / (NodeCount - 1);
+            }
         }
 
         /// <summary>

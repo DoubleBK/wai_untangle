@@ -186,14 +186,19 @@ namespace Game.Core
         /// <summary>
         /// 위치에서 가장 가까운 빈 슬롯 찾기
         /// </summary>
-        public SlotData FindNearestEmptySlot(Vector2 position, float maxDistance)
+        /// <param name="position">탐색 위치</param>
+        /// <param name="maxDistance">최대 거리</param>
+        /// <param name="excludePinId">제외할 핀 ID (-1이면 제외 없음). 드래그 중인 핀이 점유한 슬롯도 후보에 포함하기 위함.</param>
+        public SlotData FindNearestEmptySlot(Vector2 position, float maxDistance, int excludePinId = -1)
         {
             SlotData nearest = null;
             float minDist = float.MaxValue;
 
             foreach (var slot in _slots)
             {
-                if (!slot.IsEmpty) continue;
+                // 빈 슬롯이거나, 드래그 중인 핀이 점유한 슬롯인 경우 후보에 포함
+                bool isAvailable = slot.IsEmpty || slot.OccupiedByPinId == excludePinId;
+                if (!isAvailable) continue;
 
                 float dist = Vector2.Distance(position, slot.Position);
                 if (dist <= maxDistance && dist < minDist)
